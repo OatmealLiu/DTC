@@ -5,18 +5,8 @@ import errno
 from tqdm import tqdm
 from PIL import Image
 import numpy as np
-import itertools    
-import torch
-from torch.utils.data.sampler import Sampler
+import sys
 
-class TransformKtimes:
-    def __init__(self, transform, k=10):
-        self.transform = transform
-        self.k = k
-
-    def __call__(self, inp):
-        return torch.stack([self.transform(inp) for i in range(self.k)])
-        
 class TransformTwice:
     def __init__(self, transform):
         self.transform = transform
@@ -29,11 +19,9 @@ class TransformTwice:
 
 class RandomTranslateWithReflect:
     """Translate image randomly
-
     Translate vertically and horizontally by n pixels where
     n is integer drawn uniformly independently for each axis
     from [-max_translation, max_translation].
-
     Fill the uncovered blank area with reflect padding.
     """
 
@@ -73,52 +61,7 @@ class RandomTranslateWithReflect:
 
         return new_image
 
-class TwoStreamBatchSampler(Sampler):
-    """Iterate two sets of indices
 
-    An 'epoch' is one iteration through the primary indices.
-    During the epoch, the secondary indices are iterated through
-    as many times as needed.
-    """
-    def __init__(self, primary_indices, secondary_indices, batch_size, secondary_batch_size):
-        self.primary_indices = primary_indices
-        self.secondary_indices = secondary_indices
-        self.secondary_batch_size = secondary_batch_size
-        self.primary_batch_size = batch_size - secondary_batch_size
-
-        assert len(self.primary_indices) >= self.primary_batch_size > 0
-        assert len(self.secondary_indices) >= self.secondary_batch_size > 0
-
-    def __iter__(self):
-        primary_iter = iterate_once(self.primary_indices)
-        secondary_iter = iterate_eternally(self.secondary_indices)
-        return (
-            primary_batch + secondary_batch
-            for (primary_batch, secondary_batch)
-            in  zip(grouper(primary_iter, self.primary_batch_size),
-                    grouper(secondary_iter, self.secondary_batch_size))
-        )
-
-    def __len__(self):
-        return len(self.primary_indices) // self.primary_batch_size
-
-
-def iterate_once(iterable):
-    return np.random.permutation(iterable)
-
-
-def iterate_eternally(indices):
-    def infinite_shuffles():
-        while True:
-            yield np.random.permutation(indices)
-    return itertools.chain.from_iterable(infinite_shuffles())
-
-
-def grouper(iterable, n):
-    "Collect data into fixed-length chunks or blocks"
-    # grouper('ABCDEFG', 3) --> ABC DEF"
-    args = [iter(iterable)] * n
-    return zip(*args)
 
 def gen_bar_updater(pbar):
     def bar_update(count, block_size, total_size):
@@ -190,7 +133,6 @@ def download_url(url, root, filename, md5):
 
 def list_dir(root, prefix=False):
     """List all directories at a given root
-
     Args:
         root (str): Path to directory whose folders need to be listed
         prefix (bool, optional): If true, prepends the path to each result, otherwise
@@ -212,7 +154,6 @@ def list_dir(root, prefix=False):
 
 def list_files(root, suffix, prefix=False):
     """List all files ending with a suffix at a given root
-
     Args:
         root (str): Path to directory whose folders need to be listed
         suffix (str or tuple): Suffix of the files to match, e.g. '.png' or ('.jpg', '.png').
