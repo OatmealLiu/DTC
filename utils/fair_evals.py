@@ -18,6 +18,7 @@ import os
 import argparse
 from sklearn.metrics.cluster import normalized_mutual_info_score as nmi_score
 from sklearn.metrics import adjusted_rand_score as ari_score
+from modules.module import feat2prob, target_distribution
 # from modules.module import feat2prob, target_distribution
 
 #######################################################
@@ -161,11 +162,20 @@ def fair_test(model, test_loader, args, cluster=True, ind=None, return_ind=False
 
     for batch_idx, (x, label, _) in enumerate(tqdm(test_loader)):
         x, label = x.to(args.device), label.to(args.device)
-        output1, output2, _ = model(x, output='both')
-        if args.head == 'head1':
-            output = torch.cat((output1, output2), dim=1)
+        if args.step == 'first':
+            output1, output2, _ = model(x, output='both')
+            if args.head == 'head1':
+                output = torch.cat((output1, output2), dim=1)
+            else:
+                output = feat2prob(output2, model.center)
         else:
-            output = output2
+            output1, output2, output3, _ = model(x, output='all')
+            if args.head == 'head1':
+                output = torch.cat((output1, output2, output3), dim=1)
+            elif args.head == 'head2':
+                output = feat2prob(output2, model.center)
+            elif args.head == 'head3':
+                output = feat2prob(output3, model.center)
 
         _, pred = output.max(1)
         targets = np.append(targets, label.cpu().numpy())
@@ -180,15 +190,28 @@ def fair_test(model, test_loader, args, cluster=True, ind=None, return_ind=False
         print('Test acc {:.4f}, nmi {:.4f}, ari {:.4f}'.format(acc, nmi, ari))
     else:
         if ind is not None:
-            ind = ind[:args.num_unlabeled_classes, :]
-            idx = np.argsort(ind[:, 1])
-            id_map = ind[idx, 0]
-            id_map += args.num_labeled_classes
+            if args.step == 'first':
+                ind = ind[:args.num_unlabeled_classes1, :]
+                idx = np.argsort(ind[:, 1])
+                id_map = ind[idx, 0]
+                id_map += args.num_labeled_classes
 
-            targets_new = targets
-            for i in range(args.num_unlabeled_classes):
-                targets_new[targets == i + args.num_labeled_classes] = id_map[i]
-            targets = targets_new
+                # targets_new = targets
+                targets_new = np.copy(targets)
+                for i in range(args.num_unlabeled_classes1):
+                    targets_new[targets == i + args.num_labeled_classes] = id_map[i]
+                targets = targets_new
+            else:
+                ind = ind[:args.num_unlabeled_classes2, :]
+                idx = np.argsort(ind[:, 1])
+                id_map = ind[idx, 0]
+                id_map += args.num_labeled_classes
+
+                # targets_new = targets
+                targets_new = np.copy(targets)
+                for i in range(args.num_unlabeled_classes2):
+                    targets_new[targets == i + args.num_labeled_classes] = id_map[i]
+                targets = targets_new
 
         preds = torch.from_numpy(preds)
         targets = torch.from_numpy(targets)
