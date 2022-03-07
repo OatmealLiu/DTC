@@ -33,9 +33,3 @@ sbatch -p gpupart -c 4  --gres gpu:1 ./ablation_two_scripts/host_test.sh
 sbatch -p gpupart -c 4  --gres gpu:1 ./ablation_two_scripts/host_test2.sh
 
 ```
-scp -r ablation_two_scripts zhun@todi.disi.unitn.it:/data/zhun/DTC
-scp two_DTC_incd_train_cifar100.py zhun@todi.disi.unitn.it:/data/zhun/DTC
-scp two_DTC_incd_train_tinyimagenet.py zhun@todi.disi.unitn.it:/data/zhun/DTC
-
-scp resnet.py zhun@todi.disi.unitn.it:/data/zhun/DTC/models/
-scp fair_evals.py zhun@todi.disi.unitn.it:/data/zhun/DTC/utils/
